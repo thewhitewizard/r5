@@ -3,8 +3,8 @@ package com.conveyal.r5.analyst;
 import com.beust.jcommander.ParameterException;
 import com.conveyal.r5.OneOriginResult;
 import com.conveyal.r5.analyst.cluster.AnalysisTask;
-import com.conveyal.r5.analyst.cluster.Origin;
 import com.conveyal.r5.analyst.cluster.RegionalTask;
+import com.conveyal.r5.analyst.cluster.RegionalWorkResult;
 import com.conveyal.r5.analyst.cluster.TimeGrid;
 import com.conveyal.r5.analyst.cluster.TravelTimeSurfaceTask;
 import com.conveyal.r5.profile.FastRaptorWorker;
@@ -21,9 +21,6 @@ import java.util.Arrays;
 public class TravelTimeReducer {
 
     private static final Logger LOG = LoggerFactory.getLogger(TravelTimeReducer.class);
-
-    /** The task used to create travel times being reduced herein. */
-    private int maxTripDurationMinutes;
 
     /** Travel time results for a whole grid of destinations. May be null if we're only recording accessibility. */
     private TimeGrid timeGrid = null;
@@ -46,7 +43,6 @@ public class TravelTimeReducer {
      */
     public TravelTimeReducer (AnalysisTask task) {
 
-        this.maxTripDurationMinutes = task.maxTripDurationMinutes;
         this.timesPerDestination = task.getMonteCarloDrawsPerMinute() * task.getTimeWindowLengthMinutes();
         this.nPercentiles = task.percentiles.length;
 
@@ -66,9 +62,7 @@ public class TravelTimeReducer {
         calculateAccessibility = task instanceof RegionalTask && ((RegionalTask)task).gridData != null;
         if (calculateAccessibility) {
             accessibilityResult = new AccessibilityResult(
-                new Grid[] {((RegionalTask)task).gridData},
-                new int[]{task.maxTripDurationMinutes},
-                task.percentiles
+                new Grid[] {((RegionalTask)task).gridData}, RegionalWorkResult.CUTOFFS, task.percentiles
             );
         }
     }
@@ -146,8 +140,10 @@ public class TravelTimeReducer {
             int y = target / grid.width;
             double amount = grid.grid[x][y];
             for (int p = 0; p < nPercentiles; p++) {
-                if (percentileTravelTimesMinutes[p] < maxTripDurationMinutes) { // TODO less than or equal?
-                    accessibilityResult.incrementAccessibility(0, 0, p, amount);
+                for (int c = 0; c < RegionalWorkResult.CUTOFFS.length; c++) {
+                    if (percentileTravelTimesMinutes[p] < RegionalWorkResult.CUTOFFS[c]) { // TODO less than or equal?
+                        accessibilityResult.incrementAccessibility(0, c, p, amount);
+                    }
                 }
             }
         }

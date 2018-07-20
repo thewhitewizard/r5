@@ -26,10 +26,9 @@ import static com.conveyal.r5.common.Util.human;
 /**
  * Assemble the results of GridComputer into AccessGrids.
  *
- * During distributed computation of access to gridded destinations, workers place raw accessibility results for single
- * origins onto an Amazon SQS queue. These results contain one accessibility measurement per iteration (departure
- * minutes and Monte Carlo draws) per origin grid cell. This class pulls results off the queue as they become available,
- * and assembles them into a single large file containing a delta-coded version of the same data for all origin points.
+ * During distributed computation of access to gridded destinations, workers return to the broker RegionalWorkResults
+ * when polling. These results are keyed on keyed on (destinationGrid, percentile, cutoff). This class assembles
+ * results into a single large file containing a delta-coded version of the same data for all origin points.
  *
  * Access grids look like this:
  * Header (ASCII text "ACCESSGR") (note that this header is eight bytes, so the full grid can be mapped into a
@@ -213,11 +212,11 @@ public class GridResultAssembler {
 
             // Check the dimensions of the result by comparing with fields of this.request
             int nGrids = 1;
-            int nPercentiles = 1;
-            int nCutoffs = 1;
+            int nPercentiles = request.percentiles.length;
+            int nCutoffs = RegionalWorkResult.CUTOFFS.length;
 
-            // Drop work results for this particular origin into a little-endian output files.
-            // We only have one file for now because only one grid, percentile, and cutoff value.
+            // Drop work results for this particular origin into little-endian output files.
+            // We only have one file for now because only one grid.
             checkDimension(workResult, "destination grids", workResult.accessibilityValues.length, nGrids);
             for (int[][] gridResult : workResult.accessibilityValues) {
                 checkDimension(workResult, "percentiles", gridResult.length, nPercentiles);

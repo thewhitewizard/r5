@@ -8,10 +8,12 @@ import java.util.Map;
  * We report accessibility for a particular travel time cutoff, with travel time defined as a particular percentile.
  * So the rows are the percentiles, and the columns are the accessibility values for particular cutoffs of that percentile of travel time.
  * There are also more cutoffs than percentiles, so given Java's 2D array representation this is more efficient.
- * A paticular result value should be keyed on (destinationGrid, percentile, cutoff).
+ * A particular result value should be keyed on (destinationGrid, percentile, cutoff).
  */
 public class RegionalWorkResult {
 
+    public static int[] CUTOFFS = new int[] {15,30,45,60,75,90,105,120}; // Cutoffs in 15-minute increments to 2
+    // hours;
     public String jobId;
     public int taskId;
     public int[][][] accessibilityValues; // TODO Should this be floating point?
@@ -24,6 +26,15 @@ public class RegionalWorkResult {
     public RegionalWorkResult () {};
 
     // TODO constructor that takes a request and extracts the necessary numbers
+    public RegionalWorkResult(RegionalTask task){
+        this.jobId = task.jobId;
+        this.taskId = task.taskId;
+        int nGrids = 1; // task.grids.size();
+        int nPercentiles = task.percentiles.length;
+        this.accessibilityValues = new int [nGrids][nPercentiles][CUTOFFS.length];
+    }
+
+
     public RegionalWorkResult(String jobId, int taskId, int nGrids, int nPercentiles, int nTravelTimeCutoffs) {
         this.jobId = jobId;
         this.taskId = taskId;

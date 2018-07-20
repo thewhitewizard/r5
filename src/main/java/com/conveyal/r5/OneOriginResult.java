@@ -2,6 +2,7 @@ package com.conveyal.r5;
 
 import com.conveyal.r5.analyst.AccessibilityResult;
 import com.conveyal.r5.analyst.cluster.AnalysisTask;
+import com.conveyal.r5.analyst.cluster.RegionalTask;
 import com.conveyal.r5.analyst.cluster.RegionalWorkResult;
 import com.conveyal.r5.analyst.cluster.TimeGrid;
 
@@ -33,8 +34,8 @@ public class OneOriginResult {
             // Stopgap: when doing static sites, make an empty 1x1x1 result just to signal work progress to the backend.
             result = new RegionalWorkResult(task.jobId, task.taskId, 1, 1, 1);
         } else {
-            result = new RegionalWorkResult(task.jobId, task.taskId, accessibility.grids.length,
-                    accessibility.percentiles.length, accessibility.cutoffs.length);
+            RegionalTask regionalTask = (RegionalTask) task;
+            result = new RegionalWorkResult(regionalTask);
             result.setAcccessibilityValue(0, 0, 0, (int) accessibility.getAccessibility(0, 0, 0));
         }
         return result;
