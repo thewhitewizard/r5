@@ -477,6 +477,18 @@ public class Grid {
         return FastMath.toDegrees(atan(sinh(Math.PI - (pixel / 256d) / Math.pow(2, zoom) * 2 * Math.PI)));
     }
 
+    public double[] getValuesInRowMajorOrder() {
+
+        double[] data = new double[width * height];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                data[x * y + x] =  grid[x][y];
+            }
+        }
+
+        return data;
+    }
+
     /**
      * @param x absolute (world) x pixel number at the given zoom level.
      * @param y absolute (world) y pixel number at the given zoom level.

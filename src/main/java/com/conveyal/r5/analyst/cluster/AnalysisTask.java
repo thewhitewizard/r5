@@ -103,13 +103,14 @@ public abstract class AnalysisTask extends ProfileRequest {
 
     public enum Type {
         /* TODO these could be changed, to SINGLE_POINT and MULTI_POINT. The type of results requested (i.e. a grid of
-           travel times per origin vs. an accessibility value per origin) can be inferred based on whether grids are
-           specified in the profile request.  If travel time results are requested, flags can specify whether components
-           of travel time (e.g. waiting) and paths should also be returned.
+           travel times per origin vs. an accessibility value per origin) can be inferred based on whether
+           destination opportunity pointsets are specified in the profile request.  If travel time results are
+           requested, flags can specify whether components of travel time (e.g. waiting) and paths should also be
+           returned.
          */
         /** Binary grid of travel times from a single origin, for multiple percentiles, returned via broker by default */
         TRAVEL_TIME_SURFACE,
-        /** Bootstrapped accessibility results for multiple origins, returned over SQS by default. */
+        /** Results for multiple origins*/
         REGIONAL_ANALYSIS
     }
 

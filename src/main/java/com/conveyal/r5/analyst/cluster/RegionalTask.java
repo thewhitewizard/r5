@@ -35,13 +35,11 @@ public class RegionalTask extends AnalysisTask implements Cloneable {
      * that origin.
      * NOT YET IMPLEMENTED AND TESTED
      */
-    public List <String> grids;
+    public List <String> destinationKeys;
 
-    /**
-     * The grid we are calculating accessibility to. This is not serialized in the request, it's looked up by the worker.
-     * TODO use distinct terms for grid extents and gridded opportunity density data.
-     */
-    public transient Grid gridData;
+    // keyed on destinationKey, target index;
+    public double [][] targetValues;
+
 
     @Override
     public Type getType() {
@@ -61,7 +59,6 @@ public class RegionalTask extends AnalysisTask implements Cloneable {
      */
     @Override
     public List<PointSet> getDestinations(TransportNetwork network, GridCache gridCache) {
-        List<Grid> gridList = new ArrayList<>();
         List<PointSet> pointSets = new ArrayList<>();
 
         if (makeStaticSite) {
@@ -77,28 +74,29 @@ public class RegionalTask extends AnalysisTask implements Cloneable {
             return pointSets;
         }
 
-        if (grid != null){
-            // A single grid is specified.
-            gridData = gridCache.get(grid);
-            pointSets.add(gridPointSetCache.get(gridData, network.gridPointSet));
+        if (destinationKeys == null){
+            // A single grid is specified.  Get it and flatten it
+            Grid grid = gridCache.get(this.grid);
+            targetValues[0] = grid.getValuesInRowMajorOrder();
+            pointSets.add(gridPointSetCache.get(grid, network.gridPointSet));
         } else {
-            // Multiple grids should be specified. Add only the first one, and any with different extents, to pointSets.
-            // TODO more explanation, complete implementation. This block is currently unused.
+            // Multiple grids specified. Add only the first one to pointSets.
+            // TODO This block is unused while destinationKeys is not set.
             // FIXME we really shouldn't have two different implementations present, one for a list and one for a single grid.
-            gridData = gridCache.get(grids.get(0));
-            gridList.add(gridData);
-            pointSets.add(gridPointSetCache.get(gridData, network.gridPointSet));
 
-            for (int i = 1; i < grids.size(); i++) { // the first grid is already in the list
-                gridData = gridCache.get(grids.get(i));
+            Grid grid = gridCache.get(destinationKeys.get(0));
+            targetValues[0] = grid.getValuesInRowMajorOrder();
+            pointSets.add(gridPointSetCache.get(grid, network.gridPointSet));
 
-                for (int j = 0; j < i; j++) { // loop over previously added grids
-                    if (gridData.hasEqualExtents(gridList.get(j))) break;
-
-                    if (j == i - 1) { // all previously added grids checked, none matches extents, so add it
-                        gridList.add(gridData);
-                        pointSets.add(gridPointSetCache.get(gridData, network.gridPointSet));
-                    }
+            for (int i = 1; i < destinationKeys.size(); i++) { // the first grid is already in the list
+                if (grid.hasEqualExtents(gridCache.get(destinationKeys.get(i)))) { // if the next has same extents
+                    grid = gridCache.get(destinationKeys.get(i));
+                    // add values to targetValues
+                    targetValues[i] = grid.getValuesInRowMajorOrder();
+                } else {
+                    // TODO handle case of different extents
+                    throw new UnsupportedOperationException("All destination opportunity datasets in a given regional" +
+                            " analysis must have the same extent!");
                 }
             }
         }

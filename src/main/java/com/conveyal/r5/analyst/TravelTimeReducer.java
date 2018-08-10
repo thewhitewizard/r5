@@ -25,7 +25,7 @@ public class TravelTimeReducer {
     /** Travel time results for a whole grid of destinations. May be null if we're only recording accessibility. */
     private TimeGrid timeGrid = null;
 
-    private AccessibilityResult accessibilityResult = null;
+    private RegionalWorkResult accessibilityResult = null;
 
     private final boolean retainTravelTimes;
 
@@ -36,6 +36,8 @@ public class TravelTimeReducer {
     private final int nPercentiles;
 
     private final int timesPerDestination;
+
+    private double[][] targetValues = null;
 
     /**
      * Knowing the number of times that will be provided per destination and holding that constant allows us to
@@ -59,11 +61,11 @@ public class TravelTimeReducer {
         }
 
         // Decide whether we want to calculate cumulative opportunities accessibility indicators for this origin.
-        calculateAccessibility = task instanceof RegionalTask && ((RegionalTask)task).gridData != null;
+        calculateAccessibility = task instanceof RegionalTask && ((RegionalTask)task).targetValues != null; //
+        // TODO check this conditional
         if (calculateAccessibility) {
-            accessibilityResult = new AccessibilityResult(
-                new Grid[] {((RegionalTask)task).gridData}, RegionalWorkResult.CUTOFFS, task.percentiles
-            );
+            accessibilityResult = new RegionalWorkResult((RegionalTask)task);
+            this.targetValues = ((RegionalTask)task).targetValues;
         }
     }
 
@@ -127,14 +129,13 @@ public class TravelTimeReducer {
         if (calculateAccessibility) {
             // This x/y addressing can only work with one grid at a time,
             // needs to be made absolute to handle multiple different extents.
-            Grid grid = accessibilityResult.grids[0];
-            int x = target % grid.width;
-            int y = target / grid.width;
-            double amount = grid.grid[x][y];
-            for (int p = 0; p < nPercentiles; p++) {
-                for (int c = 0; c < RegionalWorkResult.CUTOFFS.length; c++) {
-                    if (percentileTravelTimes[p] < RegionalWorkResult.CUTOFFS[c]) { // TODO less than or equal?
-                        accessibilityResult.incrementAccessibility(0, c, p, amount);
+            for (int g = 0; g < targetValues.length; g++) {
+                double amount = targetValues[g][target];
+                for (int p = 0; p < nPercentiles; p++) {
+                    for (int c = 0; c < RegionalWorkResult.CUTOFFS.length; c++) {
+                        if (percentileTravelTimes[p] < RegionalWorkResult.CUTOFFS[c]) { // TODO less than or equal?
+                            accessibilityResult.incrementAccessibility(0, c, p, amount);
+                        }
                     }
                 }
             }
