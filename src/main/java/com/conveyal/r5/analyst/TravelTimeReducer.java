@@ -98,39 +98,31 @@ public class TravelTimeReducer {
      * @return the extracted travel times, in minutes. This is a hack to enable scoring paths in the caller.
      */
     public int[] recordTravelTimesForTarget (int target, int[] timesSeconds) {
-        // TODO factor out getPercentiles method for clarity
-        // Sort the times at each target and read off percentiles at the pre-calculated indexes.
-        int[] percentileTravelTimesMinutes = new int[nPercentiles];
-        if (timesSeconds.length == 1) {
-            // Handle results with no variation, e.g. from walking, biking, or driving.
-            // TODO instead of conditionals maybe overload this function to have one version that takes a single int time and wraps this array function.
-            int travelTimeSeconds = timesSeconds[0];
-            int travelTimeMinutes = (travelTimeSeconds == FastRaptorWorker.UNREACHED) ?
-                    FastRaptorWorker.UNREACHED : travelTimeSeconds / 60;
-            Arrays.fill(percentileTravelTimesMinutes, travelTimeMinutes);
-        } else if (timesSeconds.length == timesPerDestination) {
-            // Instead of general purpose sort this could be done by performing a counting sort on the times,
-            // converting them to minutes in the process and reusing the small histogram array (120 elements) which
-            // should remain largely in processor cache. That's a lot of division though. Would need to be profiled.
-            Arrays.sort(timesSeconds);
-            for (int p = 0; p < nPercentiles; p++) {
-                int timeSeconds = timesSeconds[percentileIndexes[p]];
-                if (timeSeconds == FastRaptorWorker.UNREACHED) {
-                    percentileTravelTimesMinutes[p] = FastRaptorWorker.UNREACHED;
-                } else {
-                    // Int divide will floor; this is correct because value 0 has travel times of up to one minute, etc.
-                    // This means that anything less than a cutoff of (say) 60 minutes (in seconds) will have value 59,
-                    // which is what we want. But maybe converting to minutes before we actually export a binary format is tying
-                    // the backend and frontend (which makes use of UInt8 typed arrays) too closely.
-                    int timeMinutes = timeSeconds / 60;
-                    percentileTravelTimesMinutes[p] = timeMinutes;
-                }
-            }
-        } else {
-            throw new ParameterException("You must supply the expected number of travel time values (or only one value).");
+        int[] percentileTravelTimes =  new int[nPercentiles];
+
+        if (timesSeconds.length == 1) { // Handle results with no variation, e.g. from walking, biking, or driving.
+            Arrays.fill(percentileTravelTimes, timesSeconds[0]);
+        } else { // Handle results with variation
+            percentileTravelTimes = getPercentileValues(percentileTravelTimes, timesSeconds);
         }
+
+        // convert the selected percentile values from seconds to minutes
+        for (int p = 0; p < nPercentiles; p ++){
+            if (percentileTravelTimes[p] == FastRaptorWorker.UNREACHED) {
+                // If a target is not reachable at percentile p, it won't be reachable at higher percentiles of
+                // travel time.
+                break;
+            } else {
+                // Int divide will floor; this is correct because value 0 has travel times of up to one minute, etc.
+                // This means that anything less than a cutoff of (say) 60 minutes (in seconds) will have value 59,
+                // which is what we want. But maybe converting to minutes before we actually export a binary format is tying
+                // the backend and frontend (which makes use of UInt8 typed arrays) too closely.
+                percentileTravelTimes[p] = percentileTravelTimes[p] / 60;
+            }
+        }
+
         if (retainTravelTimes) {
-            timeGrid.setTarget(target, percentileTravelTimesMinutes);
+            timeGrid.setTarget(target, percentileTravelTimes);
         }
         if (calculateAccessibility) {
             // This x/y addressing can only work with one grid at a time,
@@ -141,13 +133,31 @@ public class TravelTimeReducer {
             double amount = grid.grid[x][y];
             for (int p = 0; p < nPercentiles; p++) {
                 for (int c = 0; c < RegionalWorkResult.CUTOFFS.length; c++) {
-                    if (percentileTravelTimesMinutes[p] < RegionalWorkResult.CUTOFFS[c]) { // TODO less than or equal?
+                    if (percentileTravelTimes[p] < RegionalWorkResult.CUTOFFS[c]) { // TODO less than or equal?
                         accessibilityResult.incrementAccessibility(0, c, p, amount);
                     }
                 }
             }
         }
-        return percentileTravelTimesMinutes;
+        return percentileTravelTimes;
+    }
+
+    private int[] getPercentileValues (int[] selectedPercentiles, int[] timesSeconds){
+        // Sort the times at each target and read off percentiles at the pre-calculated indexes.
+        if (timesSeconds.length == timesPerDestination) {
+            // Instead of general purpose sort this could be done by performing a counting sort on the times,
+            // converting them to minutes in the process and reusing the small histogram array (120 elements) which
+            // should remain largely in processor cache. That's a lot of division though. Would need to be profiled.
+            Arrays.sort(timesSeconds);
+            for (int p = 0; p < nPercentiles; p++) {
+                selectedPercentiles[p] = timesSeconds[percentileIndexes[p]];
+            }
+        } else {
+            throw new ParameterException("You must supply the expected number of travel time values (or only one value).");
+        }
+
+        return selectedPercentiles;
+
     }
 
     /**
